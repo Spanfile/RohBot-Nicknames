@@ -5,7 +5,7 @@
 // @author       Spans
 // @match        https://rohbot.net
 // @grant        none
-// @updateURL	 
+// @updateURL	 https://raw.githubusercontent.com/Spanfile/RohBot-Nicknames/master/nicknames.js
 // ==/UserScript==
 /* jshint -W097 */
 'use strict';
