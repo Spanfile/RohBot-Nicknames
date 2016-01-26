@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         RohBot Nicknames
-// @version      1.0
+// @version      1.1
 // @description  Allows the user set custom nicknames to other users
 // @author       Spans
 // @match        https://rohbot.net
@@ -10,107 +10,83 @@
 /* jshint -W097 */
 'use strict';
 
-// largely based on Rohan's FILTERED.js
-// https://gist.github.com/Rohansi/f503530f91c8714089bf
-
-function unescape(str) {
-	return $("<textarea/>").html(str).text();
-}
-
-function filter(obj, predicate) {
-	var result = {};
-	
-	for (var key in obj) {
-		if (obj.hasOwnProperty(key) && !predicate(key, obj[key])) {
-			result[key] = obj[key];
-		}
-	}
-	
-	return result;
-}
-
 var storeKey = "spans-nicknames";
-var matchers = {
-	name: {
-		line: function (line, value) { return unescape(line.Sender) == value; },
-		user: function (user, value) { return unescape(user.Name) == value; }
-	},
-	id: {
-		line: function (line, value) { return unescape(line.SenderId) == value; },
-        user: function (user, value) { return unescape(user.UserId) == value; }
-	}
-};
-var nicknames = {}; // "id|name": { matcher, nick }
+var nicknames = {};
 
-function save() {
-	RohStore.set(storeKey, JSON.stringify(nicknames));
-}
-
-function load() {
+function loadNicks() {
 	nicknames = JSON.parse(RohStore.get(storeKey) || "{}");
 }
 
-cmd.register("nick", "--]", function(chat, args) {
-	if (args.length != 3 || args[1].length === 0 || args[2].length === 0 || !matchers.hasOwnProperty(args[0])) {
-		chat.statusMessage("Usage: /nick (name|id) user nickname");
+function saveNicks() {
+	RohStore.set(storeKey, JSON.stringify(nicknames));
+}
+
+cmd.register("nick", "-]", function (chat, args) {
+	if (args.length != 2 || args[0].length === 0 || args[1].length === 0) {
+		chat.statusMessage("Usage: /nick user nickname");
 		return;
 	}
 	
-	var nick = { matcher: args[0], nick: args[2] };
-	nicknames[args[1]] = nick;
-	chat.statusMessage(args[1] + " is now " + nick.nick + "!");
-	
-	save();
-});
-
-cmd.register("removenick", "-]", function(chat, args) {
-	if (args.length != 2 || args[1].length === 0 || !matchers.hasOwnProperty(args[0])) {
-		chat.statusMessage("Usage: /removenick (name|id) user");
+	var user = chat.userList.find(function (user) { return user.Name == args[0]; });
+	if (!user) {
+		chat.statusMessage("Who's " + args[0] + "?");
 		return;
 	}
 	
-	nicknames = filter(nicknames, function (original, nick) { return original == args[1] || nick.nick == args[1]; });
-	chat.statusMessage(args[1] + " is not " + args[1] + " anymore :(");
+	nicknames[user.UserId] = args[1];
+	chat.statusMessage(args[0] + " is now " + args[1] + "!");
 	
-	save();
+	saveNicks();
 });
 
-cmd.register("whois", "-", function(chat, args) {
+cmd.register("removenick", "-", function (chat, args) {
 	if (args.length != 1 || args[0].length === 0) {
-		chat.statusMessage("Usage: /whois nickname");
+		chat.statusMessage("Usage: /removenick nickname");
 		return;
 	}
 	
-	for (var key in nicknames) {
-		if (nicknames[key].nick == args[0]) {
-			chat.statusMessage("It's " + key + "!");
-			return;
-		}
+	var user = chat.userList.find(function (user) { return user.Name == args[0]; });
+	if (!user) {
+		chat.statusMessage("Who's " + args[0] + "?");
+		return;
 	}
 	
-	chat.statusMessage("That ain't nobody :<");
+	delete nicknames[user.UserId];
+	chat.statusMessage(args[0] + " ain't " + args[0] + " anymore :(");
+	
+	saveNicks();
 });
 
 chatMgr.lineFilter.add(function (line, prepend, e) {
-	for (var key in nicknames) {
-		var nick = nicknames[key];
+	if (line.Sender) {
+		var nick = nicknames[line.SenderId];
 		
-		if (matchers[nick.matcher].line(line, key)) {
-			line.Sender = nick.nick;
-			break;
+		if (nick) {
+			line.Sender = nick;
+		}
+	} else {
+		var nick = nicknames[line.ForId];
+		
+		if (nick) {
+			line.For = nick;
+		}
+		
+		if (line.By) {
+			var nick = nicknames[line.ById];
+			
+			if (nick) {
+				line.By = nick;
+			}
 		}
 	}
 });
 
 chatMgr.userFilter.add(function (user, e) {
-	for (var key in nicknames) {
-		var nick = nicknames[key];
-		
-		if (matchers[nick.matcher].user(user, key)) {
-			user.Name = nick.nick;
-			break;
-		}
+	var nick = nicknames[user.UserId];
+	
+	if (nick) {
+		user.Name = nick;
 	}
 });
 
-load();
+loadNicks();
