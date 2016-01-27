@@ -21,13 +21,17 @@ function saveNicks() {
 	RohStore.set(storeKey, JSON.stringify(nicknames));
 }
 
+function unescape(str) {
+	return $('<textarea/>').html(str).text();
+}
+
 cmd.register("nick", "-]", function (chat, args) {
 	if (args.length != 2 || args[0].length === 0 || args[1].length === 0) {
 		chat.statusMessage("Usage: /nick user nickname");
 		return;
 	}
 	
-	var user = chat.userList.find(function (user) { return user.Name == args[0]; });
+	var user = chat.userList.find(function (user) { return unescape(user.Name) == args[0]; });
 	if (!user) {
 		chat.statusMessage("Who's " + args[0] + "?");
 		return;
@@ -45,7 +49,7 @@ cmd.register("removenick", "-", function (chat, args) {
 		return;
 	}
 	
-	var user = chat.userList.find(function (user) { return user.Name == args[0]; });
+	var user = chat.userList.find(function (user) { return unescape(user.Name) == args[0]; });
 	if (!user) {
 		chat.statusMessage("Who's " + args[0] + "?");
 		return;
