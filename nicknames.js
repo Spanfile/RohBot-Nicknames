@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         RohBot Nicknames
-// @version      1.2
+// @version      1.2.1
 // @description  Allows the user set custom nicknames to other users
 // @author       Spans
 // @match        https://rohbot.net
@@ -36,6 +36,9 @@ cmd.register("nick", "--]", function (chat, args) {
 		user = chat.userList.find(function (user) { return user.UserId == args[2]; });
 	} else if (args[0] == "name") {
 		user = chat.userList.find(function (user) { return unescape(user.Name) == args[2]; });
+	} else {
+		chat.statusMessage("Usage: /nick (id|name) nickname user");
+		return;
 	}
 	
 	if (!user) {
@@ -60,6 +63,9 @@ cmd.register("removenick", "-]", function (chat, args) {
 		user = chat.userList.find(function (user) { return user.UserId == args[1]; });
 	} else if (args[0] == "name") {
 		user = chat.userList.find(function (user) { return unescape(user.Name) == args[1]; });
+	} else {
+		chat.statusMessage("Usage: /nick (id|name) nickname user");
+		return;
 	}
 	
 	if (!user) {
