@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         RohBot Nicknames
-// @version      1.2.1
+// @version      1.3
 // @description  Allows the user set custom nicknames to other users
 // @author       Spans
 // @match        https://rohbot.net
@@ -25,56 +25,60 @@ function unescape(str) {
 	return $('<textarea/>').html(str).text();
 }
 
-cmd.register("nick", "--]", function (chat, args) {
-	if (args.length != 3 || args[0].length === 0 || args[1].length === 0 || args[2].length === 0) {
-		chat.statusMessage("Usage: /nick (id|name) nickname user");
-		return;
-	}
-	
-	var user;
-	if (args[0] == "id") {
-		user = chat.userList.find(function (user) { return user.UserId == args[2]; });
-	} else if (args[0] == "name") {
-		user = chat.userList.find(function (user) { return unescape(user.Name) == args[2]; });
+function getUser(value, chat, fromNicks) {
+	if (!fromNicks) {
+		var user = chat.userList.find(function (u) { return unescape(u.Name) == value; });
+		if (user)
+			return { UserId: user.UserId, Name: user.Name };
+		
+		if ($.isNumeric(value)) {
+			user = chat.userList.find(function (u) { return u.UserId == value; });
+			if (user)
+				return { UserId: user.UserId, Name: user.Name };
+			
+			return { UserId: value, name: "[who the fuck]" };
+		}
 	} else {
-		chat.statusMessage("Usage: /nick (id|name) nickname user");
-		return;
+		var pairs = _.pairs(nicknames); // [ [ id, { nick, original } ], ... ]
+		var user =
+			pairs.find(function (p) { return p[0] == value; }) ||
+			pairs.find(function (p) { return unescape(p[1].nick) == value; }) ||
+			pairs.find(function (p) { return unescape(p[1].original) == value; });
+		
+		if (user)
+			return { UserId: user[0], Name: user[1].original };
 	}
 	
-	if (!user) {
-		chat.statusMessage("Who's " + args[2] + "?");
-		return;
-	}
-	
-	nicknames[user.UserId] = { nick: args[1], original: user.Name };
-	chat.statusMessage(user.Name + " is now " + args[1] + "!");
-	
-	saveNicks();
-});
+	return null;
+}
 
-cmd.register("removenick", "-]", function (chat, args) {
-	if (args.length != 2 || args[0].length === 0 || args[0].length === 0) {
-		chat.statusMessage("Usage: /removenick (id|name) nickname|id");
+cmd.register("nick", "-]", function (chat, args) {
+	if (args.length != 2 || args[0].length === 0 || args[1].length === 0) {
+		chat.statusMessage("Usage: /nick nickname user/id");
 		return;
 	}
 	
-	var user;
-	if (args[0] == "id") {
-		user = chat.userList.find(function (user) { return user.UserId == args[1]; });
-	} else if (args[0] == "name") {
-		user = chat.userList.find(function (user) { return unescape(user.Name) == args[1]; });
-	} else {
-		chat.statusMessage("Usage: /nick (id|name) nickname user");
-		return;
-	}
-	
+	var user = getUser(args[1], chat);	
 	if (!user) {
 		chat.statusMessage("Who's " + args[1] + "?");
 		return;
 	}
 	
-	if (!nicknames[user.UserId]) {
-		chat.statusMessage(user.Name + " doesn't have a nickname :(");
+	nicknames[user.UserId] = { nick: args[0], original: user.Name };
+	chat.statusMessage(user.Name + " is now " + args[0] + "!");
+	
+	saveNicks();
+});
+
+cmd.register("removenick", "]", function (chat, args) {
+	if (args.length != 1 || args[0].length === 0) {
+		chat.statusMessage("Usage: /removenick user/nickname/id");
+		return;
+	}
+	
+	var user = getUser(args[0], chat, true);
+	if (!user) {
+		chat.statusMessage("Who's " + args[0] + "?");
 		return;
 	}
 	
@@ -86,23 +90,22 @@ cmd.register("removenick", "-]", function (chat, args) {
 
 cmd.register("whois", "]", function (chat, args) {
 	if (args.length != 1 || args[0].length === 0) {
-		chat.statusMessage("Usage: /whois nickname");
+		chat.statusMessage("Usage: /whois user/nickname/id");
 		return;
 	}
 	
-	var user = chat.userList.find(function (user) { return unescape(user.Name) == args[0]; });
+	var user = getUser(args[0], chat);
 	if (!user) {
 		chat.statusMessage("Who's " + args[0] + "?");
 		return;
 	}
 	
 	var nick = nicknames[user.UserId];
-	if (!nick) {
-		chat.statusMessage(args[0] + " is just " + args[0] + " :(");
-		return;
+	if (nick) {
+		chat.statusMessage(user.Name + ": ID " + user.UserId + ", originally " + nick.original + ", nicknamed " + nick.nick);
+	} else {
+		chat.statusMessage(user.Name + ": ID " + user.UserId);
 	}
-	
-	chat.statusMessage("That's " + nick.original + "!");
 });
 
 chatMgr.lineFilter.add(function (line, prepend, e) {
