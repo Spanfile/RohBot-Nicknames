@@ -4,5 +4,6 @@ A userscript for [RohBot](https://rohbot.net) that allows you add nicknames for 
 Only tested in Chrome using [Tampermonkey](http://tampermonkey.net/).
 
 ### Usage
-* Add a nickname: `/nick user nickname`.
-* Remove a nickname: `/removenick nickname`
+* Add a nickname: `/nick nickname user/id`.
+* Remove a nickname: `/removenick user/nickname/id`
+* Check on someone: `/whois user/nickname/id`
